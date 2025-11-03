@@ -1,10 +1,9 @@
-# %%
 import os
 import pandas as pd
 import numpy as np
 import pickle
 from scipy.spatial import distance_matrix
-from utils import cal_dist, area_triangle, angle
+from utils import cal_dist, area_triangle, angle, load_model_dict
 import multiprocessing
 from itertools import repeat
 import networkx as nx
@@ -15,11 +14,11 @@ from rdkit import Chem
 from rdkit import RDLogger
 from rdkit import Chem
 import warnings
+import argparse
 RDLogger.DisableLog('rdApp.*')
 np.set_printoptions(threshold=np.inf)
 warnings.filterwarnings('ignore')
 
-# %%
 def one_of_k_encoding(k, possible_values):
     if k not in possible_values:
         raise ValueError(f"{k} is not a valid value in {possible_values}")
@@ -181,7 +180,6 @@ def inter_graph(ligand, pocket, dis_threshold = 5.):
 
     return (edge_index_l2p, edge_attr_l2p), (edge_index_p2l, edge_attr_p2l)
 
-# %%
 def mols2graphs(complex_path, label, save_path, dis_threshold=5.0):
     try:
         with open(complex_path, 'rb') as f:
@@ -220,7 +218,6 @@ def mols2graphs(complex_path, label, save_path, dis_threshold=5.0):
     if status:
         torch.save((g, torch.FloatTensor([label])), save_path)
 
-# %%
 def collate_fn(data_batch):
     """
     used for dataset generated from GraphDatasetV2MulPro class
@@ -239,7 +236,7 @@ class GraphDataset(object):
     This class is used for generating graph objects using multi process
     """
 
-    def __init__(self, data_dir, data_df, dis_threshold=5.0, graph_type='Graph_EHIGN', num_process=48, create=True):
+    def __init__(self, data_dir, data_df, dis_threshold=5.0, graph_type='Graph_EHIGN', num_process=1, create=True):
         self.data_dir = data_dir
         self.data_df = data_df
         self.dis_threshold = dis_threshold
@@ -262,15 +259,15 @@ class GraphDataset(object):
         pKa_list = []
         graph_path_list = []
         for i, row in data_df.iterrows():
-            cid, pKa = row['pdbid'], float(row['-logKd/Ki'])
-            complex_dir = os.path.join(data_dir, cid)
-            graph_path = os.path.join(complex_dir, f"{graph_type}-{cid}.dgl")
-            complex_path = os.path.join(complex_dir, f"{cid}.rdkit")
+            cid, protein_path, lig_native_path = row['name'], row['protein'], row['ligand']
+            pdbid = cid.split('-')[0]
+            graph_path = os.path.join(data_dir, f"{graph_type}-{pdbid}.dgl")
+            complex_path = os.path.join(data_dir, f"{cid}.rdkit")
 
             complex_path_list.append(complex_path)
             complex_id_list.append(cid)
-            pKa_list.append(pKa)
             graph_path_list.append(graph_path)
+            pKa_list.append(-1)
 
         if self.create:
             print('Generate complex graph...')
@@ -291,10 +288,16 @@ class GraphDataset(object):
         return len(self.data_df)
 
 if __name__ == '__main__':
-    data_root = './data'
-    toy_dir = os.path.join(data_root, 'toy_set')
-    toy_df = pd.read_csv(os.path.join(data_root, "toy_examples.csv"))
-    toy_set = GraphDataset(toy_dir, toy_df, graph_type='Graph_EHIGN', dis_threshold=5., create=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str, default='./data/toy_set')
+    parser.add_argument('--data_csv', type=str, default='./data/toy_examples.csv')
+    
+    args = parser.parse_args()
+    data_csv = args.data_csv
+    data_dir = args.data_dir
+    data_df = pd.read_csv(data_csv)
+    
+    toy_set = GraphDataset(data_dir, data_df, graph_type='Graph_EHIGN', dis_threshold=5., create=True)
     toy_loader = DataLoader(toy_set, batch_size=32, shuffle=True, collate_fn=collate_fn, num_workers=1)
 
 # %%
