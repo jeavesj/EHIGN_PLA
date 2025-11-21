@@ -5,6 +5,7 @@ from rdkit import Chem
 import pandas as pd
 from tqdm import tqdm
 import pymol
+import argparse
 from rdkit import RDLogger
 RDLogger.DisableLog('rdApp.*')
 
@@ -60,11 +61,17 @@ def generate_complex(data_dir, data_df, distance=5, input_ligand_format='mol2'):
         pbar.update(1)
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str, default='./data/toy_set')
+    parser.add_argument('--data_csv', type=str, default='./data/toy_examples.csv')
+    
+    args = parser.parse_args()
+    data_csv = args.data_csv
+    data_dir = args.data_dir
+    data_df = pd.read_csv(data_csv)
+    
     distance = 5
     input_ligand_format = 'mol2'
-    data_root = './data'
-    data_dir = os.path.join(data_root, 'toy_set')
-    data_df = pd.read_csv(os.path.join(data_root, 'toy_examples.csv'))
 
     ## generate pocket within 5 Ångström around ligand 
     generate_pocket(data_dir=data_dir, distance=distance)

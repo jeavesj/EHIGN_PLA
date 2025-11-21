@@ -14,6 +14,7 @@ import dgl
 from rdkit import Chem
 from rdkit import RDLogger
 from rdkit import Chem
+import argparse
 import warnings
 RDLogger.DisableLog('rdApp.*')
 np.set_printoptions(threshold=np.inf)
@@ -239,7 +240,7 @@ class GraphDataset(object):
     This class is used for generating graph objects using multi process
     """
 
-    def __init__(self, data_dir, data_df, dis_threshold=5.0, graph_type='Graph_EHIGN', num_process=48, create=True):
+    def __init__(self, data_dir, data_df, dis_threshold=5.0, graph_type='Graph_EHIGN', num_process=4, create=True):
         self.data_dir = data_dir
         self.data_df = data_df
         self.dis_threshold = dis_threshold
@@ -291,10 +292,16 @@ class GraphDataset(object):
         return len(self.data_df)
 
 if __name__ == '__main__':
-    data_root = './data'
-    toy_dir = os.path.join(data_root, 'toy_set')
-    toy_df = pd.read_csv(os.path.join(data_root, "toy_examples.csv"))
-    toy_set = GraphDataset(toy_dir, toy_df, graph_type='Graph_EHIGN', dis_threshold=5., create=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data_dir', type=str, default='./data/toy_set')
+    parser.add_argument('--data_csv', type=str, default='./data/toy_examples.csv')
+
+    args = parser.parse_args()
+    data_csv = args.data_csv
+    data_dir = args.data_dir
+    data_df = pd.read_csv(data_csv)
+    
+    toy_set = GraphDataset(data_dir, data_df, graph_type='Graph_EHIGN', dis_threshold=5., create=True)
     toy_loader = DataLoader(toy_set, batch_size=32, shuffle=True, collate_fn=collate_fn, num_workers=1)
 
 # %%
