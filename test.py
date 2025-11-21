@@ -20,6 +20,7 @@ import warnings
 warnings.filterwarnings('ignore')
 
 import argparse
+import time
 
 # %%
 def val(model, dataloader, device):
@@ -27,15 +28,20 @@ def val(model, dataloader, device):
 
     pred_list = []
     label_list = []
+    time_list = []
     for data in dataloader:
+        t0 = time.time()
         bg, label = data
         bg, label = bg.to(device), label.to(device)
 
         with torch.no_grad():
             pred_lp, pred_pl = model(bg)
             pred = (pred_lp + pred_pl) / 2
+            t1 = time.time()
+            t_inf = (t1 - t0)/float(label.size(0))
             pred_list.append(pred.detach().cpu().numpy())
             label_list.append(label.detach().cpu().numpy())
+        time_list.extend([t_inf]*label.size(0))
 
     pred = np.concatenate(pred_list, axis=0)
     label = np.concatenate(label_list, axis=0)
@@ -44,7 +50,7 @@ def val(model, dataloader, device):
 
     model.train()
 
-    return pred, rmse, pr
+    return pred, rmse, pr, time_list
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -70,7 +76,7 @@ if __name__ == '__main__':
     model =  DTIPredictor(node_feat_size=35, edge_feat_size=17, hidden_feat_size=256, layer_num=3).to(device)
     load_model_dict(model, './model/20230120_135757_EHIGN_repeat0/model/epoch-144, train_loss-0.5772, train_rmse-0.7598, valid_rmse-1.1799, valid_pr-0.7718.pt')
 
-    pred, rmse, pr = val(model, data_loader, device)
+    pred, rmse, pr, time_list = val(model, data_loader, device)
 
     msg = "rmse-%.4f, pr-%.4f," \
                 % (rmse, pr)
@@ -78,6 +84,7 @@ if __name__ == '__main__':
     
     if args.output_csv:
         data_df['prediction'] = pred
+        data_df['time_inf_s'] = time_list
         data_df.to_csv(args.output_csv, index=False)
 
 
