@@ -97,4 +97,3 @@ def cal_dist(vertex1, vertex2, ord=2):
 
 
 
-
