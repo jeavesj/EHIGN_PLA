@@ -44,13 +44,15 @@ def val(model, dataloader, device):
 
     model.train()
 
-    return rmse, pr
+    return pred, rmse, pr
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, default='./data/toy_set')
     parser.add_argument('--data_csv', type=str, default='./data/toy_examples.csv')
-
+    parser.add_argument('--output_csv', type=str, required=False)
+    parser.add_argument('--device', type=str, default='cpu', help='Options are cpu and gpu')
+    
     args = parser.parse_args()
     data_dir = args.data_dir
     data_csv = args.data_csv
@@ -60,18 +62,23 @@ if __name__ == '__main__':
 
     data_loader = DataLoader(data_set, batch_size=128, shuffle=False, collate_fn=collate_fn, num_workers=8)
 
-    if torch.cuda.is_available():
+    if args.device == 'gpu':
         device = torch.device('cuda:0')
     else:
         device = torch.device('cpu')
+        
     model =  DTIPredictor(node_feat_size=35, edge_feat_size=17, hidden_feat_size=256, layer_num=3).to(device)
     load_model_dict(model, './model/20230120_135757_EHIGN_repeat0/model/epoch-144, train_loss-0.5772, train_rmse-0.7598, valid_rmse-1.1799, valid_pr-0.7718.pt')
 
-    rmse, pr = val(model, data_loader, device)
+    pred, rmse, pr = val(model, data_loader, device)
 
     msg = "rmse-%.4f, pr-%.4f," \
                 % (rmse, pr)
     print(msg)
+    
+    if args.output_csv:
+        data_df['prediction'] = pred
+        data_df.to_csv(args.output_csv, index=False)
 
 
 # %%
