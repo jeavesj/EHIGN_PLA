@@ -15,6 +15,7 @@ from rdkit import Chem
 from rdkit import RDLogger
 from rdkit import Chem
 import argparse
+import time
 import warnings
 RDLogger.DisableLog('rdApp.*')
 np.set_printoptions(threshold=np.inf)
@@ -184,6 +185,7 @@ def inter_graph(ligand, pocket, dis_threshold = 5.):
 
 # %%
 def mols2graphs(complex_path, label, save_path, dis_threshold=5.0):
+    t0 = time.time()
     try:
         with open(complex_path, 'rb') as f:
             ligand, pocket = pickle.load(f)
@@ -217,9 +219,11 @@ def mols2graphs(complex_path, label, save_path, dis_threshold=5.0):
     except:
         g = None
         status = False
-
+    t1 = time.time()
+    t_graph = t1 - t0
     if status:
         torch.save((g, torch.FloatTensor([label])), save_path)
+        return t_graph
 
 # %%
 def collate_fn(data_batch):
@@ -273,17 +277,23 @@ class GraphDataset(object):
             pKa_list.append(pKa)
             graph_path_list.append(graph_path)
 
+        build_times = None
         if self.create:
             print('Generate complex graph...')
             # multi-thread processing
             pool = multiprocessing.Pool(self.num_process)
-            pool.starmap(mols2graphs,
+            build_times = pool.starmap(mols2graphs,
                             zip(complex_path_list, pKa_list, graph_path_list, dis_thresholds))
             pool.close()
             pool.join()
 
         self.graph_paths = graph_path_list
         self.complex_ids = complex_id_list
+        
+        if build_times is not None:
+            self.build_times = dict(zip(complex_id_list, build_times))
+        else:
+            self.build_times = None
 
     def __getitem__(self, idx):
         return torch.load(self.graph_paths[idx])
@@ -295,7 +305,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--data_dir', type=str, default='./data/toy_set')
     parser.add_argument('--data_csv', type=str, default='./data/toy_examples.csv')
-
+    parser.add_argument('--times_csv', type=str, required=False)
+    
     args = parser.parse_args()
     data_csv = args.data_csv
     data_dir = args.data_dir
@@ -303,5 +314,9 @@ if __name__ == '__main__':
     
     toy_set = GraphDataset(data_dir, data_df, graph_type='Graph_EHIGN', dis_threshold=5., create=True)
     toy_loader = DataLoader(toy_set, batch_size=32, shuffle=True, collate_fn=collate_fn, num_workers=1)
+    
+    if args.times_csv and getattr(toy_set, 'build_times', None) is not None:
+        data_df['graph_build_s'] = [toy_set.build_times.get(cid, np.nan) for cid in data_df['pdbid']]
+        data_df.to_csv(args.times_csv, index=False)
 
 # %%
