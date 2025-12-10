@@ -65,8 +65,9 @@ def generate_complex(data_dir, data_df, distance=5, input_ligand_format='mol2'):
         t0 = time.time()
         cid = row['pdbid']
         print(f'cid = {cid}')
-        complex_dir = os.path.join(data_dir, cid)
-        pocket_path = os.path.join(data_dir, cid, f'Pocket_{distance}A.pdb')
+        prefix = cid[:4]
+        complex_dir = os.path.join(data_dir, prefix)
+        pocket_path = os.path.join(complex_dir, f'Pocket_{distance}A.pdb')
 
         try:
             if not os.path.exists(pocket_path):
@@ -75,7 +76,7 @@ def generate_complex(data_dir, data_df, distance=5, input_ligand_format='mol2'):
                 continue
 
             if input_ligand_format != 'pdb':
-                ligand_input_path = os.path.join(data_dir, cid, f'{cid}_ligand.{input_ligand_format}')
+                ligand_input_path = os.path.join(complex_dir, f'{cid}_ligand.{input_ligand_format}')
                 ligand_path = ligand_input_path.replace(f'.{input_ligand_format}', '.pdb')
 
                 if not os.path.exists(ligand_input_path):
@@ -90,7 +91,7 @@ def generate_complex(data_dir, data_df, distance=5, input_ligand_format='mol2'):
                     pbar.update(1)
                     continue
             else:
-                ligand_path = os.path.join(data_dir, cid, f'{cid}_ligand.pdb')
+                ligand_path = os.path.join(complex_dir, f'{cid}_ligand.pdb')
                 if not os.path.exists(ligand_path):
                     warnings.warn(f'Skipping {cid}: ligand PDB not found at {ligand_path}')
                     pbar.update(1)
