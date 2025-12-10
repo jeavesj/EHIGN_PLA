@@ -268,7 +268,8 @@ class GraphDataset(object):
         graph_path_list = []
         for i, row in data_df.iterrows():
             cid, pKa = row['pdbid'], float(row['-logKd/Ki'])
-            complex_dir = os.path.join(data_dir, cid)
+            prefix = cid[:4]
+            complex_dir = os.path.join(data_dir, prefix)
             graph_path = os.path.join(complex_dir, f"{graph_type}-{cid}.dgl")
             complex_path = os.path.join(complex_dir, f"{cid}.rdkit")
 
