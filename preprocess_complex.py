@@ -15,11 +15,13 @@ RDLogger.DisableLog('rdApp.*')
 
 def generate_pocket(data_dir, distance=5):
     gen_pocket_times = []
-    complex_id = os.listdir(data_dir)
-    for cid in complex_id:
-        print(cid)
+    for i, row in data_df.iterrows():
         t0 = time.time()
-        complex_dir = os.path.join(data_dir, cid)
+        cid, pKa = row['pdbid'], float(row['-logKd/Ki'])
+        print(cid)
+        prefix=cid[:4]
+        t0 = time.time()
+        complex_dir = os.path.join(data_dir, prefix)
         lig_native_path = os.path.join(complex_dir, f"{cid}_ligand.mol2")
         protein_path= os.path.join(complex_dir, f"{cid}_protein.pdb")
 
@@ -45,6 +47,7 @@ def generate_complex(data_dir, data_df, distance=5, input_ligand_format='mol2'):
     for i, row in data_df.iterrows():
         t0 = time.time()
         cid, pKa = row['pdbid'], float(row['-logKd/Ki'])
+        print(f'cid = {cid}')
         complex_dir = os.path.join(data_dir, cid)
         pocket_path = os.path.join(data_dir, cid, f'Pocket_{distance}A.pdb')
         if input_ligand_format != 'pdb':
@@ -83,6 +86,7 @@ if __name__ == '__main__':
     data_csv = args.data_csv
     data_dir = args.data_dir
     data_df = pd.read_csv(data_csv)
+    print(data_df.head())
     
     distance = 5
     input_ligand_format = 'mol2'
