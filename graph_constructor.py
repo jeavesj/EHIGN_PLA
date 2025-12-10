@@ -233,6 +233,7 @@ def collate_fn(data_batch):
     :return:
     """
     # print(data_batch)
+    data_batch = [d for d in data_batch if d is not None]
     g, label = map(list, zip(*data_batch))
     bg = dgl.batch(g)
     y = torch.cat(label, dim=0)
@@ -297,7 +298,15 @@ class GraphDataset(object):
             self.build_times = None
 
     def __getitem__(self, idx):
-        return torch.load(self.graph_paths[idx])
+        graph_path = self.graph_paths[idx]
+        try:
+            if not os.path.exists(graph_path):
+                warnings.warn(f'Skipping {self.complex_ids[idx]}: graph file not found at {graph_path}')
+                return None
+            return torch.load(graph_path)
+        except Exception as e:
+            warnings.warn(f'Skipping {self.complex_ids[idx]}: failed to load {graph_path} ({e})')
+            return None
 
     def __len__(self):
         return len(self.data_df)

@@ -30,6 +30,8 @@ def val(model, dataloader, device):
     label_list = []
     time_list = []
     for data in dataloader:
+        if data is None:
+            continue
         t0 = time.time()
         bg, label = data
         bg, label = bg.to(device), label.to(device)
@@ -43,6 +45,9 @@ def val(model, dataloader, device):
             label_list.append(label.detach().cpu().numpy())
         time_list.extend([t_inf]*label.size(0))
 
+    if len(pred_list) == 0:
+        raise RuntimeError('No valid graphs were loaded. Check that .dgl files exist.')
+    
     pred = np.concatenate(pred_list, axis=0)
     label = np.concatenate(label_list, axis=0)
     pr = pearsonr(pred, label)[0]
@@ -66,8 +71,11 @@ if __name__ == '__main__':
 
     data_set = GraphDataset(data_dir, data_df, graph_type='Graph_EHIGN', create=False)
 
-    data_loader = DataLoader(data_set, batch_size=128, shuffle=False, collate_fn=collate_fn, num_workers=8)
+    # mask of complexes that actually have graph files
+    valid_mask = [os.path.exists(p) for p in data_set.graph_paths]
 
+    data_loader = DataLoader(data_set, batch_size=128, shuffle=False, collate_fn=collate_fn, num_workers=8)
+    
     if args.device == 'gpu':
         device = torch.device('cuda:0')
     else:
@@ -83,9 +91,17 @@ if __name__ == '__main__':
     print(msg)
     
     if args.output_csv:
-        data_df['prediction'] = pred
-        data_df['time_inf_s'] = time_list
-        data_df.to_csv(args.output_csv, index=False)
+        n_valid = sum(valid_mask)
+        if len(pred) != n_valid or len(time_list) != n_valid:
+            raise RuntimeError(
+                f'Mismatch between valid graphs ({n_valid}) and predictions ({len(pred)}) or timings ({len(time_list)})'
+            )
+
+        # drop complexes without graphs so labels and preds stay aligned
+        data_df_valid = data_df[valid_mask].copy()
+        data_df_valid['prediction'] = pred
+        data_df_valid['time_inf_s'] = time_list
+        data_df_valid.to_csv(args.output_csv, index=False)
 
 
 # %%
